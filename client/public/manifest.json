@@ -1,0 +1,17 @@
+{
+  "name": "Recipro",
+  "short_name": "Recipro",
+  "description": "Digital Angpow & Reciprocity Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d92027",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

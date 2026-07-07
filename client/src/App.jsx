@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './lib/db';
 import { supabase } from './lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox } from 'lucide-react';
+import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox, Share } from 'lucide-react';
 import { buildPayNowPayload, normalizeMobile } from './lib/paynow';
 import { feedback, isMuted, setMuted } from './lib/feedback';
 import {
@@ -385,6 +385,9 @@ function Dashboard() {
     resetForm();
   };
 
+  const activeEvents = events?.filter(e => e.status === 'active') || [];
+  const closedEvents = events?.filter(e => e.status === 'closed') || [];
+
   return (
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -394,14 +397,12 @@ function Dashboard() {
 
       <div id="my-events-list" style={{ display: 'grid', gap: '1rem' }}>
         {events?.length === 0 && <p>No events found. Create one!</p>}
-        {events?.map(ev => (
+        {activeEvents.map(ev => (
           <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
             <div className="card press" style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: 'var(--text-color)' }}>{ev.title}</h3>
-                <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: ev.status === 'active' ? '#dcfce7' : '#f1f5f9', color: ev.status === 'active' ? '#166534' : '#475569', borderRadius: '1rem' }}>
-                  {ev.status === 'active' ? 'Active' : 'Closed'}
-                </span>
+                <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: '#dcfce7', color: '#166534', borderRadius: '1rem' }}>Active</span>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color)', opacity: 0.8 }}>
                 <span>{ev.shared ? '👥 Shared' : '📱 Local'}</span>
@@ -410,6 +411,28 @@ function Dashboard() {
             </div>
           </Link>
         ))}
+
+        {closedEvents.length > 0 && (
+          <details style={{ marginTop: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, opacity: 0.8, marginBottom: '1rem' }}>Closed Events ({closedEvents.length})</summary>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {closedEvents.map(ev => (
+                <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
+                  <div className="card press" style={{ cursor: 'pointer', opacity: 0.8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0, color: 'var(--text-color)' }}>{ev.title}</h3>
+                      <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: '1rem' }}>Closed</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color)', opacity: 0.8 }}>
+                      <span>{ev.shared ? '👥 Shared' : '📱 Local'}</span>
+                      <span>Date: {new Date(ev.date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
       {showModal && (
@@ -477,6 +500,9 @@ function Invitations() {
   useBodyTheme(null);
   const events = useLiveQuery(() => db.local_events.filter(e => !!e.isHelper).toArray());
 
+  const activeEvents = events?.filter(e => e.status === 'active') || [];
+  const closedEvents = events?.filter(e => e.status === 'closed') || [];
+
   return (
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -488,14 +514,12 @@ function Invitations() {
 
       <div style={{ display: 'grid', gap: '1rem' }}>
         {events?.length === 0 && <p>No invitations found. Join via a link!</p>}
-        {events?.map(ev => (
+        {activeEvents.map(ev => (
           <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
             <div className="card press" style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, color: 'var(--text-color)' }}>{ev.title}</h3>
-                <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: ev.status === 'active' ? '#dcfce7' : '#f1f5f9', color: ev.status === 'active' ? '#166534' : '#475569', borderRadius: '1rem' }}>
-                  {ev.status === 'active' ? 'Active' : 'Closed'}
-                </span>
+                <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: '#dcfce7', color: '#166534', borderRadius: '1rem' }}>Active</span>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color)', opacity: 0.8 }}>
                 <span>{ev.shared ? '👥 Shared' : '📱 Local'}</span>
@@ -504,6 +528,28 @@ function Invitations() {
             </div>
           </Link>
         ))}
+
+        {closedEvents.length > 0 && (
+          <details style={{ marginTop: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, opacity: 0.8, marginBottom: '1rem' }}>Closed Invitations ({closedEvents.length})</summary>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {closedEvents.map(ev => (
+                <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
+                  <div className="card press" style={{ cursor: 'pointer', opacity: 0.8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0, color: 'var(--text-color)' }}>{ev.title}</h3>
+                      <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: '1rem' }}>Closed</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color)', opacity: 0.8 }}>
+                      <span>{ev.shared ? '👥 Shared' : '📱 Local'}</span>
+                      <span>Date: {new Date(ev.date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );
@@ -1075,6 +1121,17 @@ function SettingsPage() {
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
       <h2 style={{ marginBottom: '1.5rem' }}>Settings</h2>
       
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Install App (iOS / iPhone)</h3>
+        <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1rem' }}>
+          For the best experience, add Recipro to your home screen!
+        </p>
+        <div style={{ backgroundColor: '#f1f5f9', padding: '0.75rem', borderRadius: '0.5rem', color: '#334155', fontSize: '0.85rem' }}>
+          1. Tap the <Share size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', margin: '0 0.2rem' }} /> <strong>Share</strong> button at the bottom of Safari.<br/>
+          2. Scroll down and tap <strong>Add to Home Screen</strong>.
+        </div>
+      </div>
+
       <div className="card">
         <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Help & Tutorial</h3>
         <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1rem' }}>
