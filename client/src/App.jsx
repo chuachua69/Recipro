@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './lib/db';
 import { supabase } from './lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import { Home, Users, Volume2, VolumeX, LogOut, Settings } from 'lucide-react';
+import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox } from 'lucide-react';
 import { buildPayNowPayload, normalizeMobile } from './lib/paynow';
 import { feedback, isMuted, setMuted } from './lib/feedback';
 import {
@@ -269,6 +269,10 @@ function Navigation() {
         <Home size={24} />
         <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Dashboard</span>
       </Link>
+      <Link to="/invitations" onClick={() => feedback('tap')} style={{ color: location.pathname === '/invitations' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
+        <Inbox size={24} />
+        <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Invitations</span>
+      </Link>
       <Link to="/reciprocity" id="nav-reciprocity" onClick={() => feedback('tap')} style={{ color: location.pathname === '/reciprocity' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
         <Users size={24} />
         <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Reciprocity</span>
@@ -299,7 +303,7 @@ const THEME_OPTIONS = [
 function Dashboard() {
   useBodyTheme(null);
   const session = useAuth();
-  const events = useLiveQuery(() => db.local_events.toArray());
+  const events = useLiveQuery(() => db.local_events.filter(e => !e.isHelper).toArray());
   const [showModal, setShowModal] = useState(false);
 
   const [title, setTitle] = useState('');
@@ -462,6 +466,45 @@ function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Invitations (Helper Dashboard)
+// ---------------------------------------------------------------------------
+function Invitations() {
+  useBodyTheme(null);
+  const events = useLiveQuery(() => db.local_events.filter(e => !!e.isHelper).toArray());
+
+  return (
+    <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2>Invitations</h2>
+      </div>
+      <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+        Events where you are helping as an admin.
+      </p>
+
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        {events?.length === 0 && <p>No invitations found. Join via a link!</p>}
+        {events?.map(ev => (
+          <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
+            <div className="card press" style={{ cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: 'var(--text-color)' }}>{ev.title}</h3>
+                <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: ev.status === 'active' ? '#dcfce7' : '#f1f5f9', color: ev.status === 'active' ? '#166534' : '#475569', borderRadius: '1rem' }}>
+                  {ev.status === 'active' ? 'Active' : 'Closed'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color)', opacity: 0.8 }}>
+                <span>{ev.shared ? '👥 Shared' : '📱 Local'}</span>
+                <span>Date: {new Date(ev.date).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -867,11 +910,11 @@ function EventDetail() {
       </div>
 
       {activeTab === 'ledger' && <LedgerPanel solemn={solemn} closed={event.status === 'closed'} transactions={transactions} members={eventMembers} onRecord={handleRecord} />}
-      {activeTab === 'members' && <MembersPanel members={eventMembers} onUpdate={handleUpdateMembers} readOnly={event.status === 'closed'} />}
+      {activeTab === 'members' && <MembersPanel members={eventMembers} onUpdate={handleUpdateMembers} readOnly={event.status === 'closed' || event.isHelper} />}
       {activeTab === 'qr' && <PayNowQRCard event={event} />}
       {activeTab === 'directory' && <GuestDirectory transactions={transactions} />}
 
-      {event.status === 'active' && (
+      {event.status === 'active' && !event.isHelper && (
         <div style={{ marginTop: '2.5rem', textAlign: 'center' }}>
           <button className="btn btn-outline press" style={{ color: 'red', borderColor: 'red' }} onClick={handleCloseEvent}>
             Close Event (Finalize & Wipe)
@@ -888,31 +931,12 @@ function EventDetail() {
 function JoinEvent() {
   const session = useAuth();
   const { eventId } = useParams();
+  const navigate = useNavigate();
   const [pin, setPinInput] = useState('');
-  const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
-  const [cloudTxs, setCloudTxs] = useState([]);
-  const [activeTab, setActiveTab] = useState('ledger');
 
-  const solemn = event?.theme === 'solemn';
-  useBodyTheme(event?.theme || 'happy');
-
-  useEffect(() => {
-    if (!event) return;
-    let unsub = () => {};
-    (async () => {
-      try {
-        setCloudTxs(await fetchCloudTransactions(event.id));
-      } catch (e) {
-        console.error(e);
-      }
-      unsub = subscribeCloudTransactions(event.id, (tx) => {
-        setCloudTxs(prev => prev.some(t => t.cloudTxId === tx.cloudTxId) ? prev : [...prev, tx]);
-      });
-    })();
-    return () => unsub();
-  }, [event?.id]);
+  useBodyTheme('happy');
 
   const join = async (e) => {
     e.preventDefault();
@@ -931,12 +955,33 @@ function JoinEvent() {
           updatedMembers = [...updatedMembers, myName];
           try {
             await updateCloudEventMembers(ev.id, updatedMembers);
-            ev.members = updatedMembers;
           } catch (e) {
             console.error('Failed to update members array', e);
           }
         }
-        setEvent(ev);
+        
+        // Save to local dexie so they can see it in Invitations Tab
+        let localEvent = await db.local_events.where({ cloudId: ev.id }).first();
+        let localId;
+        if (!localEvent) {
+          localId = await db.local_events.add({
+            title: ev.title,
+            date: new Date().toISOString(),
+            theme: ev.theme,
+            status: 'active',
+            payNow: ev.payNow,
+            shared: true,
+            cloudId: ev.id,
+            pin: pin,
+            members: updatedMembers,
+            isHelper: true,
+          });
+        } else {
+          localId = localEvent.id;
+          await db.local_events.update(localId, { members: updatedMembers });
+        }
+        
+        navigate(`/event/${localId}`);
       }
     } catch (err) {
       setError('Could not connect: ' + err.message);
@@ -944,62 +989,17 @@ function JoinEvent() {
     setChecking(false);
   };
 
-  const handleRecord = async ({ contactName, contactTel, relation, amount, method }) => {
-    try {
-      await addCloudTransaction(event.id, { contactName, contactTel, relation, amount, method });
-      return true;
-    } catch (err) {
-      alert('Could not record: ' + err.message);
-      return false;
-    }
-  };
-
-  if (!event) {
-    return (
-      <div style={{ padding: '1rem', maxWidth: '420px', margin: '0 auto' }}>
-        <div className="card animate-fade-in">
-          <h2 style={{ marginTop: 0 }}>Join Event</h2>
-          <p style={{ opacity: 0.8 }}>Enter the PIN the host shared with you to help record angpow.</p>
-          <form onSubmit={join} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input className="input" value={pin} onChange={e => setPinInput(e.target.value)} placeholder="Event PIN" inputMode="numeric" required />
-            {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
-            <button type="submit" className="btn btn-primary press" disabled={checking}>{checking ? 'Checking…' : 'Join'}</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  const TABS = [
-    { key: 'ledger', label: '💰 Ledger' },
-    { key: 'qr', label: '📱 QR Code' },
-    { key: 'directory', label: '📋 Directory' },
-  ];
-
   return (
-    <div style={{ padding: '1rem', paddingBottom: '3rem' }}>
-      <h2 style={{ marginTop: 0 }}>{event.title} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>· helper</span></h2>
-
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem', overflowX: 'auto' }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => { feedback('tap', solemn); setActiveTab(tab.key); }}
-            style={{
-              padding: '0.75rem 1.25rem', background: 'none', border: 'none',
-              borderBottom: activeTab === tab.key ? '2px solid var(--primary-color)' : '2px solid transparent',
-              color: activeTab === tab.key ? 'var(--primary-color)' : 'var(--text-color)',
-              fontWeight: activeTab === tab.key ? 'bold' : 'normal', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <div style={{ padding: '1rem', maxWidth: '420px', margin: '0 auto' }}>
+      <div className="card animate-fade-in">
+        <h2 style={{ marginTop: 0 }}>Join Event</h2>
+        <p style={{ opacity: 0.8 }}>Enter the PIN the host shared with you to help record angpow.</p>
+        <form onSubmit={join} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <input className="input" value={pin} onChange={e => setPinInput(e.target.value)} placeholder="Event PIN" inputMode="numeric" required />
+          {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
+          <button type="submit" className="btn btn-primary press" disabled={checking}>{checking ? 'Joining…' : 'Join'}</button>
+        </form>
       </div>
-
-      {activeTab === 'ledger' && <LedgerPanel solemn={solemn} closed={false} transactions={cloudTxs} members={event.members || []} onRecord={handleRecord} />}
-      {activeTab === 'qr' && event.payNow && <PayNowQRCard event={event} />}
-      {activeTab === 'directory' && <GuestDirectory transactions={cloudTxs} />}
     </div>
   );
 }
@@ -1106,6 +1106,7 @@ function AppShell() {
       <main style={{ minHeight: 'calc(100vh - 140px)' }}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/invitations" element={<Invitations />} />
           <Route path="/event/:id" element={<EventDetail />} />
           <Route path="/reciprocity" element={<Reciprocity />} />
           <Route path="/settings" element={<SettingsPage />} />
