@@ -52,13 +52,44 @@ export async function verifyPin(eventId, pin) {
   };
 }
 
-// Update the members list for a shared event.
 export async function updateCloudEventMembers(eventId, members) {
   const { error } = await supabase
     .from('events')
     .update({ members })
     .eq('id', eventId);
   if (error) throw error;
+}
+
+export async function getEventForRSVP(eventId) {
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, title, theme, members')
+    .eq('id', eventId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function addEventGuest(eventId, { name, phone, relation }) {
+  const { error } = await supabase
+    .from('event_guests')
+    .insert({
+      event_id: eventId,
+      name,
+      phone: phone || null,
+      relation: relation || null,
+    });
+  if (error) throw error;
+}
+
+export async function fetchEventGuests(eventId) {
+  const { data, error } = await supabase
+    .from('event_guests')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
 }
 
 export async function fetchCloudTransactions(eventId) {

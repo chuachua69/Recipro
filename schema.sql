@@ -67,3 +67,24 @@ CREATE POLICY transactions_anon_all ON transactions
 DROP POLICY IF EXISTS transactions_auth_all ON transactions;
 CREATE POLICY transactions_auth_all ON transactions
     FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS event_guests (
+    id SERIAL PRIMARY KEY,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    phone TEXT,
+    relation TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS event_guests_event_id_idx ON event_guests(event_id);
+
+ALTER TABLE event_guests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS event_guests_anon_all ON event_guests;
+CREATE POLICY event_guests_anon_all ON event_guests
+    FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS event_guests_auth_all ON event_guests;
+CREATE POLICY event_guests_auth_all ON event_guests
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);

@@ -16,10 +16,97 @@ import {
   subscribeCloudTransactions,
   deleteCloudEvent,
   updateCloudEventMembers,
+  getEventForRSVP,
+  addEventGuest,
+  fetchEventGuests,
 } from './lib/cloud';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import './index.css';
+
+// ---------------------------------------------------------------------------
+// RSVPPage (Public)
+// ---------------------------------------------------------------------------
+function RSVPPage() {
+  const { eventId } = useParams();
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [relation, setRelation] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const ev = await getEventForRSVP(eventId);
+        setEvent(ev);
+        if (ev?.theme) document.documentElement.className = `theme-${ev.theme}`;
+      } catch {
+        setEvent(null);
+      }
+      setLoading(false);
+    })();
+  }, [eventId]);
+
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading RSVP...</div>;
+  if (!event) return <div style={{ padding: '2rem', textAlign: 'center' }}>Event not found.</div>;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await addEventGuest(event.id, { name, phone, relation });
+      setSubmitted(true);
+      feedback('success');
+    } catch (err) {
+      alert('Could not submit RSVP. ' + err.message);
+    }
+    setLoading(false);
+  };
+
+  if (submitted) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
+        <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+          <h2 style={{ margin: 0, color: 'var(--primary-color)' }}>RSVP Received!</h2>
+          <p style={{ opacity: 0.8, marginTop: '0.5rem' }}>See you at {event.title}!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
+      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px' }}>
+        <h2 style={{ margin: '0 0 1.5rem', textAlign: 'center', color: 'var(--primary-color)' }}>RSVP to<br/>{event.title}</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Your Name</label>
+            <input required className="input" value={name} onChange={e => setName(e.target.value)} placeholder="E.g., Uncle Bob" />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Mobile Number</label>
+            <input required type="tel" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="8 digits" />
+          </div>
+          {event.members && event.members.length > 0 && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>I am related to</label>
+              <select required className="input" value={relation} onChange={e => setRelation(e.target.value)}>
+                <option value="">— Select —</option>
+                {event.members.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          )}
+          <button type="submit" className="btn btn-primary press" disabled={loading} style={{ marginTop: '1rem' }}>
+            {loading ? 'Submitting...' : 'Submit RSVP'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Auth Context
@@ -197,9 +284,7 @@ function Walkthrough({ onDone }) {
       }
     });
 
-    // Short delay to ensure DOM is ready
     setTimeout(() => driverObj.drive(), 200);
-
     return () => driverObj.destroy();
   }, [onDone]);
 
@@ -214,16 +299,46 @@ function useShowWalkthrough() {
   return [show, () => setShow(false)];
 }
 
+const HELPER_WALKTHROUGH_KEY = 'recipro_helper_walkthrough_done';
+
+function HelperWalkthrough({ onDone }) {
+  useEffect(() => {
+    const driverObj = driver({
+      showProgress: true,
+      animate: true,
+      steps: [
+        {
+          popover: { title: 'Welcome to the Event Ledger!', description: 'You have joined as a helper. This ledger syncs live with all other helpers in real-time.', align: 'center' }
+        },
+        {
+          element: '#tab-guests',
+          popover: { title: 'RSVP Guest List', description: 'Guests who RSVP\'d will appear here. Tap a name to instantly pre-fill their details!', side: 'bottom', align: 'center' }
+        },
+        {
+          element: '#ledger-form',
+          popover: { title: 'Record Angpow', description: 'Type the amount and hit Record. It securely saves to the cloud instantly.', side: 'top', align: 'center' }
+        }
+      ],
+      onDestroyStarted: () => {
+        driverObj.destroy();
+        try { localStorage.setItem(HELPER_WALKTHROUGH_KEY, '1'); } catch {}
+        onDone();
+      }
+    });
+
+    setTimeout(() => driverObj.drive(), 300);
+    return () => driverObj.destroy();
+  }, [onDone]);
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Theme helper
 // ---------------------------------------------------------------------------
 function useBodyTheme(theme) {
   useEffect(() => {
     document.body.className = theme ? `theme-${theme}` : '';
-    // We do NOT return a cleanup function here, because in React 18
-    // the unmount of the old page can run its cleanup AFTER the mount 
-    // of the new page runs its setup, which would accidentally erase the theme.
-    // Since every page calls useBodyTheme on mount, it's safe to omit cleanup.
   }, [theme]);
 }
 
@@ -312,7 +427,7 @@ function Dashboard() {
   const [title, setTitle] = useState('');
   const [theme, setEventTheme] = useState('happy');
   const [pnProxy, setPnProxy] = useState('');
-  const [collab, setCollab] = useState(true); // sharing ON by default
+  const [collab, setCollab] = useState(true);
   const [pin, setPin] = useState(randomPin());
   const [saving, setSaving] = useState(false);
 
@@ -322,18 +437,6 @@ function Dashboard() {
     setPnProxy('');
     setCollab(true);
     setPin(randomPin());
-  };
-
-  const addMember = () => {
-    const name = memberInput.trim();
-    if (name && !members.includes(name)) {
-      setMembers([...members, name]);
-    }
-    setMemberInput('');
-  };
-
-  const removeMember = (name) => {
-    setMembers(members.filter(m => m !== name));
   };
 
   const handleCreate = async (e) => {
@@ -652,13 +755,22 @@ function MembersPanel({ members, onUpdate, readOnly }) {
 // ---------------------------------------------------------------------------
 // LedgerPanel
 // ---------------------------------------------------------------------------
-function LedgerPanel({ solemn, closed, transactions, members, onRecord }) {
+function LedgerPanel({ solemn, closed, transactions, members, onRecord, prefillContact }) {
   const [contactName, setContactName] = useState('');
   const [contactTel, setContactTel] = useState('');
   const [relation, setRelation] = useState('');
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
-  const [lockedRelation, setLockedRelation] = useState(true); // Default to locked for faster input
+  const [lockedRelation, setLockedRelation] = useState(true);
+
+  useEffect(() => {
+    if (prefillContact) {
+      setContactName(prefillContact.name || '');
+      setContactTel(prefillContact.phone || '');
+      setRelation(prefillContact.relation || '');
+      setAmount('');
+    }
+  }, [prefillContact]);
 
   const supportsContacts = 'contacts' in navigator && 'ContactsManager' in window;
 
@@ -697,7 +809,7 @@ function LedgerPanel({ solemn, closed, transactions, members, onRecord }) {
       {closed ? (
         <p>This event is closed. Transactions can no longer be recorded.</p>
       ) : (
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form id="ledger-form" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Guest Name</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -839,8 +951,11 @@ function EventDetail() {
   const event = useLiveQuery(() => db.local_events.get(Number(id)), [id]);
   const localTxs = useLiveQuery(() => db.transactions.where({ eventId: Number(id) }).toArray(), [id]);
   const [cloudTxs, setCloudTxs] = useState([]);
+  const [rsvps, setRsvps] = useState([]);
   const [activeTab, setActiveTab] = useState('ledger');
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [prefillContact, setPrefillContact] = useState(null);
+  const [showHelperTutorial, setShowHelperTutorial] = useState(false);
 
   const shared = !!event?.shared && !!event?.cloudId;
   const solemn = event?.theme === 'solemn';
@@ -853,6 +968,8 @@ function EventDetail() {
       try {
         const txs = await fetchCloudTransactions(event.cloudId);
         setCloudTxs(txs);
+        const guests = await fetchEventGuests(event.cloudId);
+        setRsvps(guests);
       } catch (e) {
         console.error('Cloud fetch failed', e);
       }
@@ -862,6 +979,12 @@ function EventDetail() {
     })();
     return () => unsub();
   }, [shared, event?.cloudId]);
+
+  useEffect(() => {
+    if (event?.isHelper && !localStorage.getItem(HELPER_WALKTHROUGH_KEY)) {
+      setShowHelperTutorial(true);
+    }
+  }, [event?.isHelper]);
 
   if (!event) return <div style={{ padding: '2rem' }}>Loading Event...</div>;
 
@@ -884,7 +1007,6 @@ function EventDetail() {
     }
 
     if (success) {
-      // Prompt for review after 5 logs
       const count = parseInt(localStorage.getItem('ledger_count') || '0') + 1;
       localStorage.setItem('ledger_count', count.toString());
       if (count === 5 && !localStorage.getItem('review_prompt_done')) {
@@ -963,6 +1085,7 @@ function EventDetail() {
 
   const TABS = [
     { key: 'ledger', label: '💰 Ledger' },
+    { key: 'guests', label: '✉️ RSVPs', id: 'tab-guests' },
     { key: 'members', label: '👥 Members' },
     { key: 'qr', label: '📱 QR Code' },
     { key: 'directory', label: '📋 Directory' },
@@ -988,6 +1111,7 @@ function EventDetail() {
         {TABS.map(tab => (
           <button
             key={tab.key}
+            id={tab.id}
             onClick={() => { feedback('tap', solemn); setActiveTab(tab.key); }}
             style={{
               padding: '0.75rem 1.25rem', background: 'none', border: 'none',
@@ -1001,7 +1125,35 @@ function EventDetail() {
         ))}
       </div>
 
-      {activeTab === 'ledger' && <LedgerPanel solemn={solemn} closed={event.status === 'closed'} transactions={transactions} members={eventMembers} onRecord={handleRecord} />}
+      {activeTab === 'ledger' && <LedgerPanel solemn={solemn} closed={event.status === 'closed'} transactions={transactions} members={eventMembers} onRecord={handleRecord} prefillContact={prefillContact} />}
+      {activeTab === 'guests' && (
+        <div className="card animate-fade-in">
+          <h3 style={{ marginTop: 0 }}>RSVP List ({rsvps.length})</h3>
+          <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Tap a name to pre-fill their details in the Ledger.</p>
+          {rsvps.length === 0 ? <p style={{ opacity: 0.6 }}>No RSVPs yet.</p> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {rsvps.map(g => (
+                <button 
+                  key={g.id} 
+                  className="press"
+                  onClick={() => {
+                    feedback('tap');
+                    setPrefillContact(g);
+                    setActiveTab('ledger');
+                  }}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <div>
+                    <strong style={{ display: 'block', color: 'var(--text-color)' }}>{g.name}</strong>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.7, color: 'var(--text-color)' }}>{g.phone}</span>
+                  </div>
+                  {g.relation && <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--primary-color) 10%, transparent)', color: 'var(--primary-color)', borderRadius: '1rem' }}>{g.relation}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {activeTab === 'members' && <MembersPanel members={eventMembers} onUpdate={handleUpdateMembers} readOnly={event.status === 'closed' || event.isHelper} />}
       {activeTab === 'qr' && <PayNowQRCard event={event} />}
       {activeTab === 'directory' && <GuestDirectory transactions={transactions} />}
@@ -1013,6 +1165,8 @@ function EventDetail() {
           </button>
         </div>
       )}
+
+      {showHelperTutorial && <HelperWalkthrough onDone={() => setShowHelperTutorial(false)} />}
 
       {showReviewModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '1rem' }}>
@@ -1043,7 +1197,7 @@ function EventDetail() {
 }
 
 // ---------------------------------------------------------------------------
-// JoinEvent (auth required, Walkthrough shown, auto-add to members)
+// JoinEvent
 // ---------------------------------------------------------------------------
 function JoinEvent() {
   const session = useAuth();
@@ -1065,7 +1219,6 @@ function JoinEvent() {
         setError('Wrong PIN. Try again.');
       } else {
         feedback('success', ev.theme === 'solemn');
-        // Auto-add this user to the event's members array
         const myName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Helper';
         let updatedMembers = ev.members || [];
         if (!updatedMembers.includes(myName)) {
@@ -1077,7 +1230,6 @@ function JoinEvent() {
           }
         }
         
-        // Save to local dexie so they can see it in Invitations Tab
         let localEvent = await db.local_events.where({ cloudId: ev.id }).first();
         let localId;
         if (!localEvent) {
@@ -1262,21 +1414,12 @@ function IosInstallPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Detect iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIos = /iphone|ipad|ipod/.test(userAgent);
-    
-    // Detect Safari (exclude Chrome on iOS, though Chrome on iOS also uses share sheet, Safari is standard)
-    // Actually, on iOS, all browsers use WebKit, but Safari is the one with the share button at the bottom.
-    
-    // Detect if already installed (standalone mode)
     const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
-    
-    // Check if user already dismissed it
     const dismissed = localStorage.getItem('ios_install_dismissed');
 
     if (isIos && !isInStandaloneMode && !dismissed) {
-      // Small delay so it doesn't instantly pop up
       const timer = setTimeout(() => setShow(true), 3000);
       return () => clearTimeout(timer);
     }
@@ -1287,7 +1430,7 @@ function IosInstallPrompt() {
   return (
     <div className="animate-fade-in" style={{
       position: 'fixed',
-      bottom: '90px', // Just above bottom nav
+      bottom: '90px',
       left: '50%',
       transform: 'translateX(-50%)',
       width: '90%',
@@ -1313,7 +1456,6 @@ function IosInstallPrompt() {
         Tap <Share size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', margin: '0 0.2rem' }} /> <strong>Share</strong> below,<br/>then tap <strong>Add to Home Screen</strong>.
       </div>
       
-      {/* Down arrow pointing to Safari's share button */}
       <div style={{
         position: 'absolute',
         bottom: '-10px',
