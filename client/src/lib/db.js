@@ -7,3 +7,7 @@ db.version(1).stores({
   local_events: '++id, title, date, type, pin, theme, status',
   transactions: '++id, eventId, contactName, contactTel, amount, method, date'
 });
+
+db.version(2).stores({
+  local_events: '++id, title, date, type, pin, theme, status, cloudId'
+});
