@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './lib/db';
 import { supabase } from './lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox, Share } from 'lucide-react';
+import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox, Share, Trash2 } from 'lucide-react';
 import { buildPayNowPayload, normalizeMobile } from './lib/paynow';
 import { feedback, isMuted, setMuted } from './lib/feedback';
 import {
@@ -1060,9 +1060,34 @@ function Reciprocity() {
   const owe = contacts?.filter(c => c.balance > 0).sort((a, b) => b.balance - a.balance) || [];
   const owed = contacts?.filter(c => c.balance < 0).sort((a, b) => a.balance - b.balance) || [];
 
+  const handleClearAll = async () => {
+    if (window.confirm('Are you sure you want to clear ALL reciprocity balances? This action cannot be undone.')) {
+      if (window.confirm('DOUBLE CONFIRM: Delete all records permanently?')) {
+        await db.contacts.clear();
+        feedback('success');
+      }
+    }
+  };
+
+  const handleClearIndividual = async (id, name) => {
+    if (window.confirm(`Clear record for ${name}?`)) {
+      if (window.confirm(`DOUBLE CONFIRM: Delete ${name}'s record permanently?`)) {
+        await db.contacts.delete(id);
+        feedback('success');
+      }
+    }
+  };
+
   return (
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
-      <h2 style={{ marginBottom: '1.5rem' }}>Reciprocity Balances</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ margin: 0 }}>Reciprocity Balances</h2>
+        {contacts?.length > 0 && (
+          <button onClick={handleClearAll} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Trash2 size={16} /> Clear All
+          </button>
+        )}
+      </div>
 
       {contacts?.length === 0 && (
         <div className="card">
@@ -1080,8 +1105,13 @@ function Reciprocity() {
                   <strong style={{ display: 'block' }}>{c.name}</strong>
                   {c.relation && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{c.relation}</span>}
                 </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b91c1c' }}>
-                  to gift ${parseFloat(c.balance).toFixed(2)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b91c1c', textAlign: 'right' }}>
+                    to gift ${parseFloat(c.balance).toFixed(2)}
+                  </div>
+                  <button onClick={(e) => { e.preventDefault(); handleClearIndividual(c.id, c.name); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem' }}>
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -1099,8 +1129,13 @@ function Reciprocity() {
                   <strong style={{ display: 'block' }}>{c.name}</strong>
                   {c.relation && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{c.relation}</span>}
                 </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#166534' }}>
-                  to receive ${Math.abs(parseFloat(c.balance)).toFixed(2)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#166534', textAlign: 'right' }}>
+                    to receive ${Math.abs(parseFloat(c.balance)).toFixed(2)}
+                  </div>
+                  <button onClick={(e) => { e.preventDefault(); handleClearIndividual(c.id, c.name); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem' }}>
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
