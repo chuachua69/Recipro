@@ -219,8 +219,7 @@ function useShowWalkthrough() {
 // ---------------------------------------------------------------------------
 function useBodyTheme(theme) {
   useEffect(() => {
-    document.body.className = theme ? `theme-${theme}` : '';
-    return () => { document.body.className = ''; };
+    document.documentElement.className = theme ? `theme-${theme}` : '';
   }, [theme]);
 }
 
@@ -807,6 +806,7 @@ function EventDetail() {
   const localTxs = useLiveQuery(() => db.transactions.where({ eventId: Number(id) }).toArray(), [id]);
   const [cloudTxs, setCloudTxs] = useState([]);
   const [activeTab, setActiveTab] = useState('ledger');
+  const [showMilestone, setShowMilestone] = useState(false);
 
   const shared = !!event?.shared && !!event?.cloudId;
   const solemn = event?.theme === 'solemn';
@@ -835,17 +835,28 @@ function EventDetail() {
   const eventMembers = event.members || [];
 
   const handleRecord = async ({ contactName, contactTel, relation, amount, method }) => {
+    let success = false;
     if (shared) {
       try {
         await addCloudTransaction(event.cloudId, { contactName, contactTel, relation, amount, method });
-        return true;
+        success = true;
       } catch (e) {
         alert('Could not sync to cloud (are you online?): ' + e.message);
         return false;
       }
+    } else {
+      await db.transactions.add({ eventId: Number(id), contactName, contactTel, relation, amount, method, date: new Date().toISOString() });
+      success = true;
     }
-    await db.transactions.add({ eventId: Number(id), contactName, contactTel, relation, amount, method, date: new Date().toISOString() });
-    return true;
+
+    if (success) {
+      const newCount = transactions.length + 1;
+      if (newCount === 5 && !localStorage.getItem('recipro_5_tx_milestone')) {
+        localStorage.setItem('recipro_5_tx_milestone', '1');
+        setShowMilestone(true);
+      }
+    }
+    return success;
   };
 
   const handleUpdateMembers = async (newMembers) => {
@@ -965,6 +976,21 @@ function EventDetail() {
           <button className="btn btn-outline press" style={{ color: 'red', borderColor: 'red' }} onClick={handleCloseEvent}>
             Close Event (Finalize & Wipe)
           </button>
+        </div>
+      )}
+
+      {showMilestone && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '1rem' }}>
+          <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '340px', textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+            <h2 style={{ marginTop: 0, color: 'var(--primary-color)' }}>On a Roll!</h2>
+            <p style={{ opacity: 0.8, marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              You've successfully logged 5 records! Recipro is keeping everything safely tracked so you can focus on the event.
+            </p>
+            <button className="btn btn-primary press" onClick={() => setShowMilestone(false)} style={{ width: '100%' }}>
+              Awesome!
+            </button>
+          </div>
         </div>
       )}
     </div>
