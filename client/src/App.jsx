@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './lib/db';
 import { supabase } from './lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import { Home, Users, Volume2, VolumeX, LogOut } from 'lucide-react';
+import { Home, Users, Volume2, VolumeX, LogOut, Settings } from 'lucide-react';
 import { buildPayNowPayload, normalizeMobile } from './lib/paynow';
 import { feedback, isMuted, setMuted } from './lib/feedback';
 import {
@@ -270,6 +270,10 @@ function Navigation() {
       <Link to="/reciprocity" onClick={() => feedback('tap')} style={{ color: location.pathname === '/reciprocity' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
         <Users size={24} />
         <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Reciprocity</span>
+      </Link>
+      <Link to="/settings" onClick={() => feedback('tap')} style={{ color: location.pathname === '/settings' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
+        <Settings size={24} />
+        <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Settings</span>
       </Link>
     </nav>
   );
@@ -1090,6 +1094,32 @@ function Reciprocity() {
 }
 
 // ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+function SettingsPage() {
+  useBodyTheme(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  return (
+    <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
+      <h2 style={{ marginBottom: '1.5rem' }}>Settings</h2>
+      
+      <div className="card">
+        <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Help & Tutorial</h3>
+        <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1rem' }}>
+          Need a refresher on how to use Recipro?
+        </p>
+        <button className="btn btn-primary press" onClick={() => { feedback('tap'); setShowTutorial(true); }}>
+          Launch Tutorial
+        </button>
+      </div>
+
+      {showTutorial && <Walkthrough onDone={() => setShowTutorial(false)} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // App Shell + Router
 // ---------------------------------------------------------------------------
 function AppShell() {
@@ -1105,6 +1135,7 @@ function AppShell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/event/:id" element={<EventDetail />} />
           <Route path="/reciprocity" element={<Reciprocity />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
       {!hideNav && <Navigation />}
