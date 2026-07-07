@@ -219,7 +219,11 @@ function useShowWalkthrough() {
 // ---------------------------------------------------------------------------
 function useBodyTheme(theme) {
   useEffect(() => {
-    document.documentElement.className = theme ? `theme-${theme}` : '';
+    document.body.className = theme ? `theme-${theme}` : '';
+    // We do NOT return a cleanup function here, because in React 18
+    // the unmount of the old page can run its cleanup AFTER the mount 
+    // of the new page runs its setup, which would accidentally erase the theme.
+    // Since every page calls useBodyTheme on mount, it's safe to omit cleanup.
   }, [theme]);
 }
 
@@ -806,7 +810,7 @@ function EventDetail() {
   const localTxs = useLiveQuery(() => db.transactions.where({ eventId: Number(id) }).toArray(), [id]);
   const [cloudTxs, setCloudTxs] = useState([]);
   const [activeTab, setActiveTab] = useState('ledger');
-  const [showMilestone, setShowMilestone] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const shared = !!event?.shared && !!event?.cloudId;
   const solemn = event?.theme === 'solemn';
@@ -850,10 +854,11 @@ function EventDetail() {
     }
 
     if (success) {
-      const newCount = transactions.length + 1;
-      if (newCount === 5 && !localStorage.getItem('recipro_5_tx_milestone')) {
-        localStorage.setItem('recipro_5_tx_milestone', '1');
-        setShowMilestone(true);
+      // Prompt for review after 5 logs
+      const count = parseInt(localStorage.getItem('ledger_count') || '0') + 1;
+      localStorage.setItem('ledger_count', count.toString());
+      if (count === 5 && !localStorage.getItem('review_prompt_done')) {
+        setShowReviewModal(true);
       }
     }
     return success;
@@ -979,17 +984,27 @@ function EventDetail() {
         </div>
       )}
 
-      {showMilestone && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '1rem' }}>
-          <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '340px', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
-            <h2 style={{ marginTop: 0, color: 'var(--primary-color)' }}>On a Roll!</h2>
-            <p style={{ opacity: 0.8, marginBottom: '1.5rem', lineHeight: 1.5 }}>
-              You've successfully logged 5 records! Recipro is keeping everything safely tracked so you can focus on the event.
-            </p>
-            <button className="btn btn-primary press" onClick={() => setShowMilestone(false)} style={{ width: '100%' }}>
-              Awesome!
-            </button>
+      {showReviewModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '1rem' }}>
+          <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '380px', textAlign: 'center' }}>
+            <h2 style={{ marginTop: 0, color: 'var(--primary-color)' }}>Enjoying Recipro?</h2>
+            <p style={{ opacity: 0.8, fontSize: '0.95rem' }}>You've logged 5 angpows! 🎉<br/>We're building this for the community and would love to hear your thoughts or feature requests.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <a 
+                href="mailto:hello@recipro.app?subject=My Feedback on Recipro" 
+                className="btn btn-primary press" 
+                style={{ textDecoration: 'none' }}
+                onClick={() => { localStorage.setItem('review_prompt_done', '1'); setShowReviewModal(false); }}
+              >
+                Send Feedback
+              </a>
+              <button 
+                className="btn btn-outline press" 
+                onClick={() => { localStorage.setItem('review_prompt_done', '1'); setShowReviewModal(false); }}
+              >
+                Maybe Later
+              </button>
+            </div>
           </div>
         </div>
       )}
