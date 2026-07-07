@@ -304,23 +304,17 @@ function Dashboard() {
 
   const [title, setTitle] = useState('');
   const [theme, setEventTheme] = useState('happy');
-  const [pnType, setPnType] = useState('mobile');
   const [pnProxy, setPnProxy] = useState('');
   const [collab, setCollab] = useState(true); // sharing ON by default
   const [pin, setPin] = useState(randomPin());
-  const [members, setMembers] = useState([]);
-  const [memberInput, setMemberInput] = useState('');
   const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
     setTitle('');
     setEventTheme('happy');
-    setPnType('mobile');
     setPnProxy('');
     setCollab(true);
     setPin(randomPin());
-    setMembers([]);
-    setMemberInput('');
   };
 
   const addMember = () => {
@@ -337,20 +331,14 @@ function Dashboard() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (pnType === 'mobile' && !normalizeMobile(pnProxy)) {
+    if (!normalizeMobile(pnProxy)) {
       alert('Enter a valid Singapore mobile number (8 digits, starts with 8 or 9).');
       return;
     }
-    if (pnType === 'uen' && !pnProxy.trim()) {
-      alert('Enter a valid UEN.');
-      return;
-    }
-    if (members.length === 0) {
-      alert('Add at least one family member (e.g. "Groom", "Bride\'s Mom").');
-      return;
-    }
     setSaving(true);
-    const payNow = { type: pnType, proxy: pnProxy.trim() };
+    const payNow = { type: 'mobile', proxy: pnProxy.trim() };
+    const hostName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Host';
+    const initialMembers = [hostName];
     let shared = collab;
     let cloudId = null;
     let joinPin = null;
@@ -363,7 +351,7 @@ function Dashboard() {
         joinPin = pin;
         try {
           const ev = await createCloudEvent({
-            title, theme, payNow, pin: joinPin, members,
+            title, theme, payNow, pin: joinPin, members: initialMembers,
             ownerId: session?.user?.id || null,
           });
           cloudId = ev.id;
@@ -384,7 +372,7 @@ function Dashboard() {
       shared,
       cloudId,
       pin: joinPin,
-      members,
+      members: initialMembers,
     });
 
     feedback('success', theme === 'solemn');
@@ -437,47 +425,16 @@ function Dashboard() {
                 </select>
               </div>
 
-              {/* Family members / admins */}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Family Members / Admins</label>
-                <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: '0 0 0.5rem' }}>
-                  Add the key people for this event. Guests will pick "Related to" from this list when giving angpow.
-                </p>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <input
-                    className="input"
-                    value={memberInput}
-                    onChange={e => setMemberInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMember(); } }}
-                    placeholder="E.g. Groom, Bride's Mom"
-                  />
-                  <button type="button" className="btn btn-outline press" onClick={addMember} style={{ whiteSpace: 'nowrap' }}>+ Add</button>
-                </div>
-                {members.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {members.map(m => (
-                      <span key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.6rem', backgroundColor: 'color-mix(in srgb, var(--primary-color) 12%, transparent)', color: 'var(--primary-color)', borderRadius: '1rem', fontSize: '0.85rem', fontWeight: 500 }}>
-                        {m}
-                        <button type="button" onClick={() => removeMember(m)} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, fontSize: '1rem', lineHeight: 1 }}>&times;</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>PayNow (guests scan to pay you)</label>
-                <select className="input" value={pnType} onChange={e => setPnType(e.target.value)} style={{ marginBottom: '0.5rem' }}>
-                  <option value="mobile">Mobile number</option>
-                  <option value="uen">UEN (business)</option>
-                </select>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>PayNow Number (Mobile)</label>
+                <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: '0 0 0.5rem' }}>Guests scan the generated QR code to pay you.</p>
                 <input
                   required
                   className="input"
                   value={pnProxy}
                   onChange={e => setPnProxy(e.target.value)}
-                  placeholder={pnType === 'mobile' ? 'e.g. 9123 4567' : 'e.g. 201912345A'}
-                  inputMode={pnType === 'mobile' ? 'tel' : 'text'}
+                  placeholder="e.g. 9123 4567"
+                  inputMode="tel"
                 />
               </div>
 
@@ -926,9 +883,10 @@ function EventDetail() {
 }
 
 // ---------------------------------------------------------------------------
-// JoinEvent (no auth required — PIN is the gate)
+// JoinEvent (auth required, Walkthrough shown, auto-add to members)
 // ---------------------------------------------------------------------------
 function JoinEvent() {
+  const session = useAuth();
   const { eventId } = useParams();
   const [pin, setPinInput] = useState('');
   const [event, setEvent] = useState(null);
@@ -966,6 +924,18 @@ function JoinEvent() {
         setError('Wrong PIN. Try again.');
       } else {
         feedback('success', ev.theme === 'solemn');
+        // Auto-add this user to the event's members array
+        const myName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'Helper';
+        let updatedMembers = ev.members || [];
+        if (!updatedMembers.includes(myName)) {
+          updatedMembers = [...updatedMembers, myName];
+          try {
+            await updateCloudEventMembers(ev.id, updatedMembers);
+            ev.members = updatedMembers;
+          } catch (e) {
+            console.error('Failed to update members array', e);
+          }
+        }
         setEvent(ev);
       }
     } catch (err) {
@@ -1139,6 +1109,7 @@ function AppShell() {
           <Route path="/event/:id" element={<EventDetail />} />
           <Route path="/reciprocity" element={<Reciprocity />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/join/:eventId" element={<JoinEvent />} />
         </Routes>
       </main>
       {!hideNav && <Navigation />}
@@ -1152,8 +1123,6 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* JoinEvent is OUTSIDE auth — guests don't need to log in */}
-          <Route path="/join/:eventId" element={<JoinEvent />} />
           <Route path="/*" element={<AuthGate />} />
         </Routes>
       </AuthProvider>
