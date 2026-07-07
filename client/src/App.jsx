@@ -17,6 +17,8 @@ import {
   deleteCloudEvent,
   updateCloudEventMembers,
 } from './lib/cloud';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 import './index.css';
 
 // ---------------------------------------------------------------------------
@@ -166,42 +168,42 @@ const WALKTHROUGH_STEPS = [
 const WALKTHROUGH_KEY = 'recipro_walkthrough_done';
 
 function Walkthrough({ onDone }) {
-  const [step, setStep] = useState(0);
-  const current = WALKTHROUGH_STEPS[step];
-  const isLast = step === WALKTHROUGH_STEPS.length - 1;
+  useEffect(() => {
+    const driverObj = driver({
+      showProgress: true,
+      animate: true,
+      steps: [
+        {
+          element: 'header',
+          popover: { title: 'Welcome to Recipro! 🎉', description: 'Track angpow received at your events (weddings, funerals, birthdays) and never lose track of who gave what.', side: 'bottom', align: 'start' }
+        },
+        {
+          element: '#create-event-btn',
+          popover: { title: 'Create an Event', description: 'Tap "+ Create Event" to start a new ledger. Add family members like "Groom" and "Bride\'s Mom" — guests will be tagged to them.', side: 'bottom', align: 'start' }
+        },
+        {
+          element: '#my-events-list',
+          popover: { title: 'Share with Family', description: 'When you create an event, you can enable sharing to get a link + PIN. Send it to relatives helping at the door — everyone records into the same live ledger!', side: 'top', align: 'start' }
+        },
+        {
+          element: '#nav-reciprocity',
+          popover: { title: 'Track Reciprocity', description: 'When the event ends, hit "Close Event". Balances are saved locally. The Reciprocity tab shows who you owe back and how much.', side: 'top', align: 'center' }
+        }
+      ],
+      onDestroyStarted: () => {
+        driverObj.destroy();
+        try { localStorage.setItem(WALKTHROUGH_KEY, '1'); } catch {}
+        onDone();
+      }
+    });
 
-  const finish = () => {
-    try { localStorage.setItem(WALKTHROUGH_KEY, '1'); } catch {}
-    onDone();
-  };
+    // Short delay to ensure DOM is ready
+    setTimeout(() => driverObj.drive(), 200);
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '1rem' }}>
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', textAlign: 'center', backgroundColor: 'var(--card-bg)' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>{current.icon}</div>
-        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--primary-color)' }}>{current.title}</h3>
-        <p style={{ fontSize: '0.95rem', opacity: 0.85, lineHeight: 1.5, marginBottom: '1.5rem' }}>{current.body}</p>
+    return () => driverObj.destroy();
+  }, [onDone]);
 
-        {/* Progress dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', marginBottom: '1.5rem' }}>
-          {WALKTHROUGH_STEPS.map((_, i) => (
-            <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: i === step ? 'var(--primary-color)' : 'var(--border-color)', transition: 'background-color 0.2s' }} />
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-outline press" onClick={finish} style={{ fontSize: '0.85rem' }}>Skip</button>
-          <button
-            type="button"
-            className="btn btn-primary press"
-            onClick={() => isLast ? finish() : setStep(step + 1)}
-          >
-            {isLast ? 'Get Started!' : 'Next →'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 function useShowWalkthrough() {
@@ -267,7 +269,7 @@ function Navigation() {
         <Home size={24} />
         <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Dashboard</span>
       </Link>
-      <Link to="/reciprocity" onClick={() => feedback('tap')} style={{ color: location.pathname === '/reciprocity' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
+      <Link to="/reciprocity" id="nav-reciprocity" onClick={() => feedback('tap')} style={{ color: location.pathname === '/reciprocity' ? 'var(--primary-color)' : 'var(--text-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
         <Users size={24} />
         <span style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>Reciprocity</span>
       </Link>
@@ -395,10 +397,10 @@ function Dashboard() {
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2>My Events</h2>
-        <button className="btn btn-primary press" onClick={() => { feedback('tap'); setShowModal(true); }}>+ Create Event</button>
+        <button id="create-event-btn" className="btn btn-primary press" onClick={() => { feedback('tap'); setShowModal(true); }}>+ Create Event</button>
       </div>
 
-      <div style={{ display: 'grid', gap: '1rem' }}>
+      <div id="my-events-list" style={{ display: 'grid', gap: '1rem' }}>
         {events?.length === 0 && <p>No events found. Create one!</p>}
         {events?.map(ev => (
           <Link to={`/event/${ev.id}`} key={ev.id} onClick={() => feedback('tap')} style={{ textDecoration: 'none' }}>
@@ -1098,7 +1100,6 @@ function Reciprocity() {
 // ---------------------------------------------------------------------------
 function SettingsPage() {
   useBodyTheme(null);
-  const [showTutorial, setShowTutorial] = useState(false);
 
   return (
     <div style={{ padding: '1rem', paddingBottom: '5rem' }}>
@@ -1109,12 +1110,14 @@ function SettingsPage() {
         <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1rem' }}>
           Need a refresher on how to use Recipro?
         </p>
-        <button className="btn btn-primary press" onClick={() => { feedback('tap'); setShowTutorial(true); }}>
+        <button className="btn btn-primary press" onClick={() => { 
+          feedback('tap'); 
+          try { localStorage.removeItem('recipro_walkthrough_done'); } catch {}
+          window.location.href = '/'; 
+        }}>
           Launch Tutorial
         </button>
       </div>
-
-      {showTutorial && <Walkthrough onDone={() => setShowTutorial(false)} />}
     </div>
   );
 }
