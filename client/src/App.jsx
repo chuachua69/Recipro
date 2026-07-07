@@ -1150,6 +1150,80 @@ function SettingsPage() {
 }
 
 // ---------------------------------------------------------------------------
+// iOS Install Prompt
+// ---------------------------------------------------------------------------
+function IosInstallPrompt() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIos = /iphone|ipad|ipod/.test(userAgent);
+    
+    // Detect Safari (exclude Chrome on iOS, though Chrome on iOS also uses share sheet, Safari is standard)
+    // Actually, on iOS, all browsers use WebKit, but Safari is the one with the share button at the bottom.
+    
+    // Detect if already installed (standalone mode)
+    const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+    
+    // Check if user already dismissed it
+    const dismissed = localStorage.getItem('ios_install_dismissed');
+
+    if (isIos && !isInStandaloneMode && !dismissed) {
+      // Small delay so it doesn't instantly pop up
+      const timer = setTimeout(() => setShow(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="animate-fade-in" style={{
+      position: 'fixed',
+      bottom: '90px', // Just above bottom nav
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: '90%',
+      maxWidth: '350px',
+      backgroundColor: 'var(--card-bg)',
+      padding: '1rem',
+      borderRadius: '1rem',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+      border: '1px solid var(--border-color)',
+      zIndex: 2000,
+      textAlign: 'center'
+    }}>
+      <button onClick={() => {
+        localStorage.setItem('ios_install_dismissed', '1');
+        setShow(false);
+      }} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', opacity: 0.5 }}>
+        &times;
+      </button>
+      
+      <div style={{ marginBottom: '0.5rem', fontWeight: 600, color: 'var(--primary-color)' }}>Install App (iOS)</div>
+      <div style={{ fontSize: '0.85rem', lineHeight: 1.5, opacity: 0.9 }}>
+        Apple doesn't allow automatic installation. To add this app to your home screen:<br/><br/>
+        Tap <Share size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', margin: '0 0.2rem' }} /> <strong>Share</strong> below,<br/>then tap <strong>Add to Home Screen</strong>.
+      </div>
+      
+      {/* Down arrow pointing to Safari's share button */}
+      <div style={{
+        position: 'absolute',
+        bottom: '-10px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 0, 
+        height: 0, 
+        borderLeft: '10px solid transparent',
+        borderRight: '10px solid transparent',
+        borderTop: '10px solid var(--card-bg)'
+      }} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // App Shell + Router
 // ---------------------------------------------------------------------------
 function AppShell() {
@@ -1172,6 +1246,7 @@ function AppShell() {
       </main>
       {!hideNav && <Navigation />}
       {showWalkthrough && <Walkthrough onDone={dismissWalkthrough} />}
+      <IosInstallPrompt />
     </>
   );
 }
