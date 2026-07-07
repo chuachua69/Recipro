@@ -680,22 +680,37 @@ function ShareCard({ event }) {
   };
 
   return (
-    <div className="card" style={{ marginBottom: '1rem', borderStyle: 'dashed' }}>
-      <strong style={{ display: 'block', marginBottom: '0.5rem' }}>👥 Live shared ledger</strong>
-      <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
-        Send helpers this link + PIN — everyone records into the same ledger in real time.
-      </p>
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <input className="input" readOnly value={link} onFocus={e => e.target.select()} />
-        <button type="button" className="btn btn-outline press" onClick={() => copy(link, 'link')} style={{ whiteSpace: 'nowrap' }}>
-          {copied === 'link' ? '✓' : 'Copy'}
-        </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+      <div className="card" style={{ borderStyle: 'dashed' }}>
+        <strong style={{ display: 'block', marginBottom: '0.5rem' }}>✉️ Public RSVP Link</strong>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
+          Send this to guests. They can RSVP without downloading the app.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input className="input" readOnly value={`${window.location.origin}/rsvp/${event.cloudId}`} onFocus={e => e.target.select()} />
+          <button type="button" className="btn btn-outline press" onClick={() => copy(`${window.location.origin}/rsvp/${event.cloudId}`, 'rsvp')} style={{ whiteSpace: 'nowrap' }}>
+            {copied === 'rsvp' ? '✓' : 'Copy'}
+          </button>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600 }}>PIN: {event.pin}</span>
-        <button type="button" className="btn btn-outline press" onClick={() => copy(event.pin, 'pin')} style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
-          {copied === 'pin' ? '✓' : 'Copy PIN'}
-        </button>
+
+      <div className="card" style={{ borderStyle: 'dashed' }}>
+        <strong style={{ display: 'block', marginBottom: '0.5rem' }}>👥 Live shared ledger</strong>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', opacity: 0.8 }}>
+          Send helpers this link + PIN — everyone records into the same ledger in real time.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <input className="input" readOnly value={link} onFocus={e => e.target.select()} />
+          <button type="button" className="btn btn-outline press" onClick={() => copy(link, 'link')} style={{ whiteSpace: 'nowrap' }}>
+            {copied === 'link' ? '✓' : 'Copy'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontWeight: 600 }}>PIN: {event.pin}</span>
+          <button type="button" className="btn btn-outline press" onClick={() => copy(event.pin, 'pin')} style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
+            {copied === 'pin' ? '✓' : 'Copy PIN'}
+          </button>
+        </div>
       </div>
     </div>
   );
