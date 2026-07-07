@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@layer base {
+  /* Base = upscale "New Chinese" (新中式) porcelain + cinnabar. Used on Dashboard/Reciprocity. */
+  :root {
+    --bg-color: #FDFBF7;
+    --text-color: #2C2C2C;
+    --primary-color: #A62B2B;   /* cinnabar */
+    --primary-hover: #8F2020;
+    --card-bg: #FFFDFA;
+    --border-color: #E7DFD2;
+    --accent-gold: #B08D57;     /* warm bronze/gold trim */
+    --font-serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, "Times New Roman", serif;
+    --font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --watermark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='260'%3E%3Cpath d='M0 230 L150 110 L250 175 L400 70 L540 165 L680 90 L900 200' fill='none' stroke='%23A62B2B' stroke-width='1.5' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* Happy (CHAGEE-inspired): raw silk cream, cinnabar red, gold trim. */
+  .theme-happy {
+    --bg-color: #F5F2EB;
+    --text-color: #3A2A22;
+    --primary-color: #A62B2B;
+    --primary-hover: #8F2020;
+    --card-bg: #FEFBF5;
+    --border-color: #E4D9C7;
+    --accent-gold: #B08D57;
+    --watermark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='260'%3E%3Cpath d='M0 230 L150 110 L250 175 L400 70 L540 165 L680 90 L900 200' fill='none' stroke='%23A62B2B' stroke-width='1.5' opacity='0.06'/%3E%3C/svg%3E");
+  }
+
+  /* Solemn (misty ink-wash 水墨): mist gray, charcoal/ink-black, slate. No gold, no bright color. */
+  .theme-solemn {
+    --bg-color: #F0F1F2;
+    --text-color: #2C2C2C;
+    --primary-color: #3A3F44;
+    --primary-hover: #2C2C2C;
+    --card-bg: #FAFAFA;
+    --border-color: #D6D8DA;
+    --accent-gold: #6B7075;
+    --watermark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='240'%3E%3Cpath d='M60 150 Q260 110 460 150 T860 150' fill='none' stroke='%232C2C2C' stroke-width='10' stroke-linecap='round' opacity='0.04'/%3E%3Cpath d='M120 190 Q320 165 520 190 T880 185' fill='none' stroke='%232C2C2C' stroke-width='6' stroke-linecap='round' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+
+  /* Subtle 新中式 watermark, fixed behind content. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--watermark);
+    background-repeat: no-repeat;
+    background-position: center 82%;
+    background-size: min(96%, 900px);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-150;
+    letter-spacing: 0.02em;
+  }
+  .btn:active {
+    transform: scale(0.95);
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+  .btn-primary {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: 1px solid color-mix(in srgb, var(--accent-gold) 55%, transparent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+  }
+  .btn-outline {
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    background: transparent;
+  }
+  .btn-outline:hover {
+    background: color-mix(in srgb, var(--border-color) 45%, transparent);
+  }
+  .card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(44, 44, 44, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    @apply rounded-xl p-4 md:p-6;
+  }
+  .input {
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    @apply w-full px-3 py-2 rounded-lg transition-shadow;
+  }
+  .input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 45%, transparent);
+  }
+}
