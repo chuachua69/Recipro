@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './lib/db';
 import { supabase } from './lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
-import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox, Share, Trash2 } from 'lucide-react';
+import { Home, Users, Volume2, VolumeX, LogOut, Settings, Inbox, Share, Trash2, Lock } from 'lucide-react';
 import { buildPayNowPayload, normalizeMobile } from './lib/paynow';
 import { feedback, isMuted, setMuted } from './lib/feedback';
 import {
@@ -658,6 +658,9 @@ function LedgerPanel({ solemn, closed, transactions, members, onRecord }) {
   const [relation, setRelation] = useState('');
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
+  const [lockedRelation, setLockedRelation] = useState(true); // Default to locked for faster input
+
+  const supportsContacts = 'contacts' in navigator && 'ContactsManager' in window;
 
   const selectContact = async () => {
     feedback('tap', solemn);
@@ -683,8 +686,8 @@ function LedgerPanel({ solemn, closed, transactions, members, onRecord }) {
       feedback('success', solemn);
       setContactName('');
       setContactTel('');
-      setRelation('');
       setAmount('');
+      if (!lockedRelation) setRelation('');
     }
   };
 
@@ -699,16 +702,43 @@ function LedgerPanel({ solemn, closed, transactions, members, onRecord }) {
             <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Guest Name</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <input required className="input" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Name (e.g. Uncle Tan)" />
-              <button type="button" className="btn btn-outline press" onClick={selectContact} style={{ whiteSpace: 'nowrap' }}>📱 Select</button>
+              {supportsContacts && (
+                <button type="button" className="btn btn-outline press" onClick={selectContact} style={{ whiteSpace: 'nowrap' }}>📱 Select</button>
+              )}
             </div>
             <input className="input" value={contactTel} onChange={e => setContactTel(e.target.value)} placeholder="Phone Number (Optional)" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Related to</label>
-            <select className="input" value={relation} onChange={e => setRelation(e.target.value)}>
-              <option value="">— Select —</option>
-              {(members || []).map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontWeight: 500 }}>Related to</label>
+              <label style={{ fontSize: '0.8rem', color: lockedRelation ? 'var(--primary-color)' : 'var(--text-color)', opacity: lockedRelation ? 1 : 0.6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: lockedRelation ? 600 : 400 }}>
+                <input type="checkbox" checked={lockedRelation} onChange={e => { feedback('tap'); setLockedRelation(e.target.checked); }} style={{ display: 'none' }} />
+                <Lock size={14} /> {lockedRelation ? 'Locked (Sticky)' : 'Click to Lock'}
+              </label>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {members.length === 0 && <span style={{ opacity: 0.6, fontSize: '0.9rem' }}>No members added yet.</span>}
+              {(members || []).map(m => (
+                <button 
+                  key={m} 
+                  type="button"
+                  className="press"
+                  onClick={() => { setRelation(m); feedback('tap'); }}
+                  style={{ 
+                    padding: '0.4rem 0.8rem', 
+                    borderRadius: '2rem', 
+                    border: `1px solid ${relation === m ? 'var(--primary-color)' : 'var(--border-color)'}`,
+                    backgroundColor: relation === m ? 'var(--primary-color)' : 'transparent',
+                    color: relation === m ? '#fff' : 'var(--text-color)',
+                    fontWeight: relation === m ? 600 : 400,
+                    fontSize: '0.9rem',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Amount ($)</label>
