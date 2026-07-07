@@ -1072,7 +1072,7 @@ function Reciprocity() {
 
       {owe.length > 0 && (
         <>
-          <h3 style={{ fontSize: '0.95rem', opacity: 0.7, marginBottom: '0.75rem' }}>They gave us — we owe them back</h3>
+          <h3 style={{ fontSize: '0.95rem', opacity: 0.7, marginBottom: '0.75rem' }}>Their Generosity (To return with gratitude)</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
             {owe.map(c => (
               <div key={c.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1081,7 +1081,7 @@ function Reciprocity() {
                   {c.relation && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{c.relation}</span>}
                 </div>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#b91c1c' }}>
-                  owe ${parseFloat(c.balance).toFixed(2)}
+                  to gift ${parseFloat(c.balance).toFixed(2)}
                 </div>
               </div>
             ))}
@@ -1091,7 +1091,7 @@ function Reciprocity() {
 
       {owed.length > 0 && (
         <>
-          <h3 style={{ fontSize: '0.95rem', opacity: 0.7, marginBottom: '0.75rem' }}>We gave them — they owe us</h3>
+          <h3 style={{ fontSize: '0.95rem', opacity: 0.7, marginBottom: '0.75rem' }}>Our Blessings Shared (To receive in due time)</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {owed.map(c => (
               <div key={c.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1100,7 +1100,7 @@ function Reciprocity() {
                   {c.relation && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{c.relation}</span>}
                 </div>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#166534' }}>
-                  owed ${Math.abs(parseFloat(c.balance)).toFixed(2)}
+                  to receive ${Math.abs(parseFloat(c.balance)).toFixed(2)}
                 </div>
               </div>
             ))}
